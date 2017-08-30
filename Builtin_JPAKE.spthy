@@ -1,0 +1,52 @@
+theory Builtin_JPAKE begin
+/*
+ * Protocol:	JPAKE as builtin primitive  
+ * Modeler: 	Jun Young Kim 
+ * Described in: 
+ * Date: 	 
+ *
+ * Status: 	 Working
+ */
+
+builtins: symmetric-encryption, diffie-hellman
+
+/* protocol */
+rule Register_JPAKE_:
+	[Fr(~pass),Fr(~nr)]-->
+	[!JPAKE($A,~pass,~nr ^ ~pass),!JPAKE($B,~pass,~nr ^ ~pass)]
+	
+rule Reveal_password:
+	[!JPAKE(A,key,pass)]--[Reveal(A)]->
+	[Out(pass)]
+	
+rule A_1: 
+	[ Fr(~secA), !JPAKE(A, pass, keyA)]
+	 --[Send(A,~secA), Key_A(A,keyA), Secret(~secA)]-> 
+	[ST_A(A,pass,keyA), Out(<A,senc(~secA,keyA)>)]
+
+rule B_1: 
+	let secB = sdec(msg,keyB) in
+	[ In(<A,msg>), !JPAKE(B, pass, keyB)]
+	 --[Key_B(B,keyB), Recv(B,secB), Secret(secB)]->
+	 [ST_B(B,pass,keyB)]
+	 
+lemma protocol_flow: exists-trace
+	"Ex A B s #i #j. Send(A,s)@i
+	& Recv(B,s)@j & i < j"
+
+lemma key_establishment: exists-trace
+	"Ex A B k #i #j. Key_A(A,k)@i
+	& Key_B(B,k)@j & i < j"
+	
+//#ifdef others
+lemma message_secret_DY: all-traces
+	"All s #i. Secret(s) @i & not (Ex A #i. Reveal(A)@i) 
+	==> not (Ex #j. K(s)@j)"
+	
+lemma message_secret_eCK: all-traces
+	"All s #i. Secret(s) @i 
+	==> not (Ex #j. K(s)@j)"	
+//#endif
+axiom Equality:
+"All x y #i. Eq(x,y) @i ==> x = y"
+end

@@ -1,0 +1,73 @@
+theory secrecy_asym_enc begin
+/*
+ * Protocol:	PKC DDoS implementation
+ * Modeler: 	Jun Young Kim 
+ * Described in: 
+ * Date: 	 
+ *
+ * Status: 	 Working
+ */
+ 
+builtins: asymmetric-encryption , signing
+
+// Public key infrastructure 
+rule Register_pk: 
+[ Fr(~ltkA) ] --> 
+[ !Ltk($A, ~ltkA), !Pk($A, pk(~ltkA)), Out(pk(~ltkA))]
+
+// Compromising an agent's long-term key 
+rule Reveal_ltk: 
+[ !Ltk(A, ltkA)] --[ Reveal(A)]-> [Out(ltkA)]
+
+// Role A sends first message with signature
+rule Send_key: 
+let msg = aenc(<A, ~na>, pkB)
+	sig = sign(msg,ltkA) in
+[ Fr(~na), !Ltk(A, ltkA), !Pk(B, pkB) ]
+--[ Send(A, msg), Secret(~na), Role('A'),Honest(A),Honest(B)]-> 
+[ St_A_1(A, ltkA, pkB, B, ~na), Out(<msg, sig>)]
+
+// Role B receives and check signature
+rule Receive_key: 
+let msg = aenc(<A, na>, pkB) in
+[ !Ltk(B, ltkB), !Pk(A, pkA), In(<msg, sig>)]
+--[Eq(verify(sig,msg,pkA),true),Recv(B, msg), Secret(na), Role('B'),Honest(B), Honest(A)]->
+[ St_B_1(B, ltkB, pkA, A, na,pkB)]
+
+//This is an expensive operation. If this is forced by adversary, it can be a dos attack
+rule Return_message:
+[St_B_1(B,ltkB, pkA, A,na, pkB),Fr(~nb)]
+--[Send_Back(B,aenc(<A, na>, pkB)),DoS_Protection(aenc(<A, na>, pkB)),Honest(A),Honest(B)]->
+[Out(sign(<B,~nb>,ltkB))]
+
+// All Dos_Protection items must have own honest sender
+lemma DoS_protection:
+"All m #i. DoS_Protection(m) @i ==> (Ex A #j. Send(A,m) @j & Honest(A)@j & j<i)
+| (Ex A #r. Reveal(A)@r & Honest(A)@i & r<i)"
+
+lemma executable: exists-trace 
+"Ex A B m #i #j #k. Send(A,m)@i & Recv(B,m) @j & Send_Back(B,m)@k & i < j & j<k"
+
+lemma secret_A: all-traces 
+	"All n #i. Secret(n) @i & Role('A') @i ==> 
+	(not (Ex #j. K(n)@j)) | (Ex B #j. Reveal(B)@j & Honest(B)@i)"
+	
+lemma secret_B: all-traces 
+	"All n #i. Secret(n) @i & Role('B') @i ==> 
+	(not (Ex #j. K(n)@j)) | (Ex B #j. Reveal(B)@j & Honest(B)@i)"
+	
+lemma secrecy_PFS_A: exists-trace 
+	"not All x #i. Secret(x) @i & Role('A') @i ==> 
+	not (Ex #j. K(x)@j) | (Ex B #r. Reveal(B)@r & Honest(B) @i & r < i)"
+
+axiom Equality:
+"All x y #i. Eq(x,y) @i ==> x = y"
+		
+axiom OnlyOnce:
+	"All #i #j. OnlyOnce()@i & OnlyOnce()@j ==> #i = #j"
+
+#ifdef another_DoS_approach
+lemma DoS_1: exists-trace 
+"Ex A B m #i #j #k #l. Send(A,m)@i & Recv(B,m) @j & Send_Back(B,m)@k & Send_Back(B,m)@l & k < l"	
+#endif
+end

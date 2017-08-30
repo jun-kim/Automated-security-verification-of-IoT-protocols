@@ -1,0 +1,59 @@
+theory 1a_JPAKE begin
+/*
+ * Protocol:	  approximation
+ * Modeler: 	 Jun Young Kim 
+ * Described in: 
+ * Date: 	 
+ *
+ * Status: 	 Working
+ */
+
+builtins: diffie-hellman, hashing
+functions: g/0
+
+/* protocol */
+rule password_distribution: 
+	[ Fr(~pass), Fr(~x1),Fr(~x3)]-->[ !Alice($A,~pass,~x1), !Bob($B,~pass,~x3)]
+	
+rule A_1: 
+	let Y1 = 'g' ^ x1  in
+	[ !Alice(A,pass,x1), Fr(~secA)]
+	 --[Send_A(A,Y1)]-> [Out(<A,'A_1', Y1>), ST1_A(A,pass,x1)]
+
+rule B_1: 
+	let KB = Y1 ^ x3 ^ pass //^pass makes not terminating
+	in 
+	 [!Bob(B,pass,x3), In(<A, 'A_1', Y1 >),Fr(~secB)] 
+	 --[ Recv_B(B,Y1), Secret(KB), 
+	 Send_B(B, KB),Symmetric_Key_B(B,KB)]-> [ST_B1(B,x3), Out(<B,'B_1','g' ^ x3>)]
+
+rule A_2: 
+	let KA = X3 ^ x1 ^ pass //^pass makes not terminating
+	in 
+	[ In(<B,'B_1', X3>),ST1_A(A,pass,x1)]
+	 --[Recv_A(A,X3), Symmetric_Key_A(A,KA), Secret(KA)]-> []
+
+
+lemma key_establishment: exists-trace
+	"Ex A B key #i #j. Symmetric_Key_B(B, key) @i &
+	Symmetric_Key_A(A,key)@j & i < j"
+
+#ifdef secret	
+lemma message_secret: all-traces
+	"All s #i. Secret(s) @i 
+	==> not (Ex #j. K(s)@j)"	
+#endif
+
+#ifdef flow	
+lemma protocol_flow: exists-trace
+	"Ex A B SA SB #i #j #k. Send_A(A,SA)@i
+	& Recv_B(B,SA)@j & Send_B(B,SB)@j
+	& Recv_A(A,SB)@k &  i < j & j < k"
+#endif
+	
+#ifdef ddd	
+lemma message_secret_DY: all-traces
+	"All s #i. Secret(s) @i & not (Ex A #i. Reveal(A)@i) 
+	==> not (Ex #j. K(s)@j)"
+#endif
+end
