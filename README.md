@@ -6,7 +6,8 @@ Jun Young Kim, Ralph Holz, Wen Hu,  and Sanjay Jha. Automated Analysis of Secure
 # How to use
 1) Clone the master branch in linux (Tested in Ubuntu 16.04)
 2) unzip tamarin-prover-1.0.zip
-3) tamarin-prover-1.0.zip --prove modelname.spthy
+3) # chmod +x tamarin-prover-1.0-linux
+4) # tamarin-prover-1.0.zip --prove modelname.spthy
 
 Thank you,
 Jun
